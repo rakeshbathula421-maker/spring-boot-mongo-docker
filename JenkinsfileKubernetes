@@ -1,20 +1,24 @@
-
 node {
 
     stage('SCM Checkout') {
-        git credentialsId: 'GIT_CREDENTIALS',
+        git(
+            credentialsId: 'GIT_CREDENTIALS',
             url: 'https://github.com/rakeshbathula421-maker/spring-boot-mongo-docker.git',
             branch: 'master'
+        )
     }
 
     stage('Maven Clean Package') {
-        def mavenHome = tool name: 'Maven-3.9.12', type: 'maven'
-        def mavenCMD = "${mavenHome}/bin/mvn"
-        sh "${mavenCMD} clean package -DskipTests"
+        def mavenHome = tool(
+            name: 'Maven-3.9.12',
+            type: 'maven'
+        )
+
+        sh "${mavenHome}/bin/mvn clean package -DskipTests"
     }
 
     stage('Build Docker Image') {
-        sh 'docker build -t rakesh1908/spring-boot-mongo .'
+        sh 'docker build -t rakesh1908/spring-boot-mongo:latest .'
     }
 
     stage('Push Docker Image') {
@@ -25,17 +29,36 @@ node {
                 passwordVariable: 'DOCKER_PASSWORD'
             )
         ]) {
-            sh 'echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin'
+            sh '''
+                echo "$DOCKER_PASSWORD" | docker login \
+                    --username "$DOCKER_USERNAME" \
+                    --password-stdin
+            '''
         }
 
-        sh 'docker push rakesh1908/spring-boot-mongo'
+        sh 'docker push rakesh1908/spring-boot-mongo:latest'
     }
 
     stage('Deploy To Kubernetes Cluster') {
-        kubernetesDeploy(
-            configs: 'springBootMongo.yml',
-            kubeconfigId: 'KUBERNETES_CONFIG',
-            enableConfigSubstitution: true
-        )
+        withCredentials([
+            file(
+                credentialsId: 'KUBERNETES_CONFIG',
+                variable: 'KUBECONFIG'
+            )
+        ]) {
+            sh '''
+                echo "===== Kubernetes Cluster ====="
+                kubectl get nodes
+
+                echo "===== Applying Kubernetes YAML ====="
+                kubectl apply -f springBootMongo.yml
+
+                echo "===== Pods ====="
+                kubectl get pods -A
+
+                echo "===== Services ====="
+                kubectl get services -A
+            '''
+        }
     }
 }
