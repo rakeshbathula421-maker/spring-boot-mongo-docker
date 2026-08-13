@@ -1,13 +1,11 @@
-FROM openjdk:8-alpine
+```dockerfile
+FROM eclipse-temurin:8-jre-alpine
 
-# Required for starting application up.
-RUN apk update && apk add /bin/sh
+WORKDIR /app
 
-RUN mkdir -p /opt/app
-ENV PROJECT_HOME /opt/app
+COPY target/*.jar app.jar
 
-COPY target/spring-boot-mongo-1.0.jar $PROJECT_HOME/spring-boot-mongo.jar
+EXPOSE 8080
 
-WORKDIR $PROJECT_HOME
-
-CMD ["java" ,"-jar","./spring-boot-mongo.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
